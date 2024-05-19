@@ -1,268 +1,368 @@
 package main;
 
+import model.Amount;
 import model.Product;
 import model.Sale;
+import model.Client;
+import model.Employee;
+
 import java.util.Scanner;
+import java.io.*;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 
 public class Shop {
-	private double cash = 100.00;
-	private Product[] inventory;
-	private int numberProducts;
-	private Sale[] sales;
+    private Amount cash = new Amount(100);
+    private ArrayList<Product> inventory;
+    private ArrayList<Sale> sales;
+    final static double TAX_RATE = 1.04;
+    Employee employee = new Employee("Martina");
 
-	final static double TAX_RATE = 1.04;
+    public Shop() {
+        inventory = new ArrayList<>();
+        sales = new ArrayList<>();
+    }
 
-	public Shop() {
-		cash = 0.0;
-		inventory = new Product[10];
-	}
+    public static void main(String[] args) {
+        Shop shop = new Shop();
+        shop.loadInventory();
+        shop.initSession();
 
-	public static void main(String[] args) {
-		Shop shop = new Shop();
+        Scanner scanner = new Scanner(System.in);
+        int opcion;
+        boolean exit = false;
 
-		shop.loadInventory();
+        do {
+            System.out.println("\n");
+            System.out.println("===========================");
+            System.out.println("Menu principal miTienda.com");
+            System.out.println("===========================");
+            System.out.println("1) Contar caja");
+            System.out.println("2) Añadir producto");
+            System.out.println("3) Añadir stock");
+            System.out.println("4) Marcar producto proxima caducidad");
+            System.out.println("5) Ver inventario");
+            System.out.println("6) Venta");
+            System.out.println("7) Ver ventas");
+            System.out.println("8) Ver venta total");
+            System.out.println("9) Eliminar producto");
+            System.out.println("10) Salir programa");
+            System.out.print("Seleccione una opción: ");
+            opcion = scanner.nextInt();
 
-		Scanner scanner = new Scanner(System.in);
-		int opcion = 0;
-		boolean exit = false;
+            switch (opcion) {
+                case 1:
+                    System.out.println("Caja actual: " + shop.showCash());
+                    break;
+                case 2:
+                    shop.addProduct();
+                    break;
+                case 3:
+                    shop.addStock();
+                    break;
+                case 4:
+                    shop.setExpired();
+                    break;
+                case 5:
+                    shop.showInventory();
+                    break;
+                case 6:
+                    shop.sale();
+                    break;
+                case 7:
+                    shop.showSales();
+                    break;
+                case 8:
+                    shop.showTotalSales();
+                    break;
+                case 9:
+                    shop.deleteProduct();
+                    break;
+                case 10:
+                    System.out.println("Saliendo...");
+                    exit = true;
+                    break;
+            }
+        } while (!exit);
+    }
 
-	
+    public void initSession() {
+        boolean logged = false;
+        Scanner input = new Scanner(System.in);
 
-		do {
-			System.out.println("\n");
-			System.out.println("===========================");
-			System.out.println("Menu principal miTienda.com");
-			System.out.println("===========================");
-			System.out.println("1) Contar caja");
-			System.out.println("2) Añadir producto");
-			System.out.println("3) Añadir stock");
-			System.out.println("4) Marcar producto proxima caducidad");
-			System.out.println("5) Ver inventario");
-			System.out.println("6) Venta");
-			System.out.println("7) Ver ventas");
-			System.out.println("10) Salir programa");
-			System.out.print("Seleccione una opción: ");
-			opcion = scanner.nextInt();
+        do {
+            System.out.print("Introduce número de empleado: ");
+            int user = input.nextInt();
+            input.nextLine();
+            System.out.print("Introduce contraseña de empleado: ");
+            String password = input.nextLine();
+            
+            System.out.println();
+            logged = employee.login(user, password);
+        } while (!logged);
+    }
 
-			switch (opcion) {
-			case 1:
-				shop.showCash();
-				break;
+    public void loadInventory() {
+        try {
+            File f = new File("./files/inputInventory.txt");
+            BufferedReader r = new BufferedReader(new FileReader(f));
+            String line;
+            while ((line = r.readLine()) != null) {
+                String[] parts = line.split(";");
+                String name = null;
+                double wholesalerPrice = 0.0;
+                int stock = 0;
+                for (String part : parts) {
+                    String[] keyValue = part.split(":");
+                    String key = keyValue[0].trim();
+                    String value = keyValue[1].trim();
+                    switch (key) {
+                        case "Product":
+                            name = value;
+                            break;
+                        case "Wholesaler Price":
+                            wholesalerPrice = Double.parseDouble(value);
+                            break;
+                        case "Stock":
+                            stock = Integer.parseInt(value);
+                            break;
+                        default:
+                            break;
+                    }
+                }
+                if (name != null) {
+                    Product product = new Product(name, wholesalerPrice, true, stock);
+                    addProduct(product);
+                }
+            }
+            System.out.println("Inventario cargado desde el fichero inputInventory.txt");
+            System.out.println();
+            Scanner mostrarInventario = new Scanner(f);
+            while (mostrarInventario.hasNextLine()) {
+                String inventario = mostrarInventario.nextLine();
+                System.out.println(inventario); 
+            }
+            r.close();
+        } catch (IOException e) {
+            System.out.println("Error al cargar el inventario");
+            e.printStackTrace();
+        }
+    }
 
-			case 2:
-				shop.addProduct();
-				break;
+    public double showCash() {
+        return cash.getValue();
+    }
 
-			case 3:
-				shop.addStock();
-				break;
+    public boolean addProduct(String name, int stock, double price) {
+        Product product = new Product(name, price, true, stock);
+        inventory.add(product);
+        return true;
+    }
 
-			case 4:
-				shop.setExpired();
-				break;
+    public void addProduct() {	
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Nombre: ");
+        String name = scanner.nextLine();
+        System.out.print("Precio mayorista: ");
+        double wholesalerPrice = scanner.nextDouble();
+        System.out.print("Stock: ");
+        int stock = scanner.nextInt();
+        addProduct(new Product(name, wholesalerPrice, true, stock));
+    }
 
-			case 5:
-				shop.showInventory();
-				break;
+    public boolean addStock(String name, int stock) {
+        Product product = findProduct(name);
+        if (product != null) {
+            product.setStock(product.getStock() + stock);
+            return true;
+        }
+        return false;
+    }
 
-			case 6:
-				shop.sale();
-				break;
+    public void addStock() {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Seleccione un nombre de producto: ");
+        String name = scanner.next();
+        Product product = findProduct(name);
+        if (product != null) {
+            System.out.print("Seleccione la cantidad a añadir: ");
+            int stock = scanner.nextInt();
+            product.setStock(product.getStock() + stock);
+            System.out.println("El stock del producto " + name + " ha sido actualizado a " + product.getStock());
+        } else {
+            System.out.println("No se ha encontrado el producto con nombre " + name);
+        }
+    }
 
-			case 7:
-				shop.showSales();
-				break;
+    public void setExpired() {
+        Scanner scanner = new Scanner(System.in);
+        System.out.print("Seleccione un nombre de producto: ");
+        String name = scanner.next();
+        Product product = findProduct(name);
+        if (product != null) {
+            product.expire();
+            System.out.println("El precio del producto " + name + " ha sido actualizado a " + product.getPublicPrice());
+        }
+    }
 
-			case 8:
-				exit = true;
-				break;
-			}
+    public void showInventory() {
+        System.out.println("Contenido actual de la tienda:");
+        for (Product product : inventory) {
+            if (product != null) {
+                if(product.getStock() == 0) {
+                    product.setAvailable(false);
+                }
+                System.out.println(product.toString());
+            }
+        }
+    }
 
-		} while (!exit);
+    public void sale() {
+        int productCount = 0;
+        ArrayList<Product> productSales = new ArrayList<>();
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Realizar venta, escribir nombre cliente");
+        String nameClient = scanner.nextLine();
+        Client client = new Client(nameClient);
+        double totalAmount = 0.0;
+        String nameProduct = "";
+        while (!nameProduct.equals("0")) {
+            System.out.println("Introduce el nombre del producto, escribir 0 para terminar:");
+            nameProduct = scanner.nextLine();
+            if (nameProduct.equals("0")) {
+                break;
+            }
+            Product product = findProduct(nameProduct);
+            boolean productAvailable = false;
+            if (product != null && product.isAvailable()) {
+                productAvailable = true;
+                totalAmount += product.getPublicPrice();
+                product.setStock(product.getStock() - 1);
+                if (product.getStock() == 0) {
+                    product.setAvailable(false);
+                }
+                productSales.add(product);
+                productCount++;
+                System.out.println("Producto añadido con éxito");
+            }
+            if (!productAvailable) {
+                System.out.println("Producto no encontrado o sin stock");
+            }
+        }
+        LocalDateTime date = LocalDateTime.now();
+        DateTimeFormatter format = DateTimeFormatter.ofPattern("dd-MM-yyyy HH:mm:ss");
+        String salesDate = date.format(format);
+        System.out.println();
+        System.out.println("Hora de venta: " + salesDate);
+        Sale currentSale = new Sale(nameClient, productSales, totalAmount, date);
+        System.out.println(currentSale.toString());
+        addSales(currentSale);
+        totalAmount = totalAmount * TAX_RATE;
+        cash.setValue(cash.getValue() + totalAmount); 
+        System.out.println("Venta realizada con éxito, total: " + totalAmount + cash.getCurrency());
+        boolean pay = client.pay(totalAmount);
+        if(!pay) {
+            System.out.print(cash.getCurrency());
+        } else {
+            System.out.print(cash.getCurrency() + " restantes.");
+        }
+    }
 
-	}
+    public void showSales() {
+        System.out.println("Lista de ventas:");
+        for (Sale sale : sales) {
+            if (sale != null) {
+                System.out.println(sale.toString());
+            }
+        }
+        Scanner sc = new Scanner(System.in);
+        System.out.println("¿Guardar la información de venta en un fichero?(S / N)");
+        String option = sc.next();
+        if (option.equalsIgnoreCase("S")) {
+            try {
+                LocalDateTime currentDate = LocalDateTime.now();
+                DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+                String dateString = currentDate.format(formatter);
+                String fileName = "./files/sales_" + dateString + ".txt";
+                File file = new File(fileName);
+                FileWriter writer = new FileWriter(file);
+                PrintWriter printWriter = new PrintWriter(writer);
+                int saleNumber = 1;
+                for (Sale sale : sales) {
+                    if (sale != null) {
+                        printWriter.println(saleNumber + ";Client=" + sale.getClient() + ";Date=" + sale.getDate() + ";");
+                        String products = "";
+                        for (Product product : sale.getProducts()) {
+                            products += product.getName() + "," + product.getPublicPrice() + cash.getCurrency();
+                        }
+                        printWriter.println(saleNumber + ";Products=" + products);
+                        printWriter.println(saleNumber + ";Amount=" + sale.getAmount() + cash.getCurrency() + ";");
+                        saleNumber++;
+                    }
+                }
+                printWriter.close();
+                System.out.println("La información de ventas se ha guardado correctamente en el archivo: " + fileName);
+            } catch (IOException e) {
+                System.out.println("Error al guardar la información de ventas en el archivo.");
+                e.printStackTrace();
+            }
+        } else {
+            System.out.println("No se ha guardado la información de ventas en un archivo.");
+        }
+    }
 
-	/**
-	 * load initial inventory to shop
-	 */
-	public void loadInventory() {
-		addProduct(new Product("Manzana", 10.00, true, 10));
-		addProduct(new Product("Pera", 20.00, true, 20));
-		addProduct(new Product("Hamburguesa", 30.00, true, 30));
-		addProduct(new Product("Fresa", 5.00, true, 20));
-	}
+    public void addProduct(Product product) {
+        inventory.add(product);
+    }
 
-	/**
-	 * show current total cash
-	 */
-	private void showCash() {
-		System.out.println("Dinero actual: " );
-	}
+    public void addSales(Sale sale) {
+        sales.add(sale);
+    }
 
-	/**
-	 * add a new product to inventory getting data from console
-	 */
-	public void addProduct() {
-		if (isInventoryFull()) {
-			System.out.println("No se pueden añadir más productos");
-			return;
-		}
-		Scanner scanner = new Scanner(System.in);
-		System.out.print("Nombre: ");
-		String name = scanner.nextLine();
-		System.out.print("Precio mayorista: ");
-		double wholesalerPrice = scanner.nextDouble();
-		System.out.print("Stock: ");
-		int stock = scanner.nextInt();
+    public boolean isSalesEmpty() {
+        return sales.isEmpty();
+    }
 
-		addProduct(new Product(name, wholesalerPrice, true, stock));
-	}
+    public Product findProduct(String name) {
+        for (Product product : inventory) {
+            if (product != null && product.getName().equalsIgnoreCase(name)) {
+                return product;
+            }
+        }
+        return null;
+    }
 
-	/**
-	 * add stock for a specific product
-	 */
-	public void addStock() {
-		Scanner scanner = new Scanner(System.in);
-		System.out.print("Seleccione un nombre de producto: ");
-		String name = scanner.next();
-		Product product = findProduct(name);
+    public void showTotalSales() {
+        System.out.println("Total de ventas:");
+        double total = 0;
+        for (Sale sale : sales) {
+            if (sale != null) {
+                total += sale.getAmount() * TAX_RATE;
+            }
+        }
+        System.out.println(total + cash.getCurrency());
+    }
 
-		if (product != null) {
-			// ask for stock
-			System.out.print("Seleccione la cantidad a añadir: ");
-			int stock = scanner.nextInt();
-			// update stock product
-			product.setStock(stock);
-			System.out.println("El stock del producto " + name + " ha sido actualizado a " + product.getStock());
+    public boolean deleteProduct(String name) {
+        Product product = findProduct(name);
+        if (product != null) {
+            inventory.remove(product);
+            return true;
+        }
+        return false;
+    }
 
-		} else {
-			System.out.println("No se ha encontrado el producto con nombre " + name);
-		}
-	}
-
-	/**
-	 * set a product as expired
-	 */
-	private void setExpired() {
-		Scanner scanner = new Scanner(System.in);
-		System.out.print("Seleccione un nombre de producto: ");
-		String name = scanner.next();
-
-		Product product = findProduct(name);
-
-		if (product != null) {
-			System.out.println("El stock del producto " + name + " ha sido actualizado a " + product.getPublicPrice());
-
-		}
-	}
-
-	/**
-	 * show all inventory
-	 */
-	public void showInventory() {
-		System.out.println("Contenido actual de la tienda:");
-		for (Product product : inventory) {
-			if (product != null) {
-				System.out.println(product);
-			}
-		}
-	}
-
-	/**
-	 * make a sale of products to a client
-	 */
-	public void sale() {
-		// ask for client name
-		Scanner sc = new Scanner(System.in);
-		System.out.println("Realizar venta, escribir nombre cliente");
-		String client = sc.nextLine();
-
-		// sale product until input name is not 0
-		double totalAmount = 0.0;
-		String name = "";
-		while (!name.equals("0")) {
-			System.out.println("Introduce el nombre del producto, escribir 0 para terminar:");
-			name = sc.nextLine();
-
-			if (name.equals("0")) {
-				break;
-			}
-			Product product = findProduct(name);
-			boolean productAvailable = false;
-
-			if (product != null && product.isAvailable()) {
-				productAvailable = true;
-				totalAmount += product.getPublicPrice();
-				product.setStock(product.getStock() - 1);
-				// if no more stock, set as not available to sale
-				if (product.getStock() == 0) {
-					product.setAvailable(false);
-				}
-				System.out.println("Producto añadido con éxito");
-			}
-
-			if (!productAvailable) {
-				System.out.println("Producto no encontrado o sin stock");
-			}
-		}
-
-		// show cost total
-		totalAmount = totalAmount * TAX_RATE;
-		cash += totalAmount;
-		System.out.println("Venta realizada con éxito, total: " + totalAmount);
-	}
-
-	/**
-	 * show all sales
-	 */
-	private void showSales() {
-		System.out.println("Lista de ventas:");
-		for (Sale sale : sales) {
-			if (sale != null) {
-				System.out.println(sale);
-			}
-		}
-	}
-
-	/**
-	 * add a product to inventory
-	 * 
-	 * @param product
-	 */
-	public void addProduct(Product product) {
-		if (isInventoryFull()) {
-			System.out.println("No se pueden añadir más productos, se ha alcanzado el máximo de " + inventory.length);
-			return;
-		}
-		inventory[numberProducts] = product;
-		numberProducts++;
-	}
-
-	/**
-	 * check if inventory is full or not
-	 */
-	public boolean isInventoryFull() {
-		if (numberProducts == 10) {
-			return true;
-		} else {
-			return false;
-		}
-
-	}
-
-	/**
-	 * find product by name
-	 * 
-	 * @param product name
-	 */
-	public Product findProduct(String name) {
-		for (int i = 0; i < inventory.length; i++) {
-			if (inventory[i] != null && inventory[i].getName().equals(name)) {
-				return inventory[i];
-			}
-		}
-		return null;
-
-	}
-
+    public void deleteProduct() {
+        Scanner scanner = new Scanner(System.in);
+        System.out.println("Introduce el nombre del producto:");
+        String name = scanner.nextLine();
+        Product product = findProduct(name);
+        if (product != null) {
+            inventory.remove(product);
+            System.out.println("Producto eliminado con éxito");
+        } else {
+            System.out.println("Producto no encontrado o sin stock");
+        }
+    }
 }

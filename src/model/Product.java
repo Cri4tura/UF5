@@ -3,8 +3,8 @@ package model;
 public class Product {
 	private int id;
     private String name;
-    private double publicPrice;
-    private double wholesalerPrice;
+    private Amount publicPrice;
+    private Amount wholesalerPrice;
     private boolean available;
     private int stock;
     private static int totalProducts;
@@ -15,7 +15,8 @@ public class Product {
 		super();
 		this.id = totalProducts+1;
 		this.name = name;
-		this.wholesalerPrice = wholesalerPrice;
+		this.wholesalerPrice = new Amount(wholesalerPrice);
+		this.publicPrice = new Amount(wholesalerPrice*2);
 		this.available = available;
 		this.stock = stock;
 		totalProducts++;
@@ -38,19 +39,19 @@ public class Product {
 	}
 
 	public double getPublicPrice() {
-		return publicPrice;
+		return publicPrice.getValue();
 	}
 
 	public void setPublicPrice(double publicPrice) {
-		this.publicPrice = publicPrice;
+		this.publicPrice.setValue(publicPrice);
 	}
 
 	public double getWholesalerPrice() {
-		return wholesalerPrice;
+		return wholesalerPrice.getValue();
 	}
 
 	public void setWholesalerPrice(double wholesalerPrice) {
-		this.wholesalerPrice = wholesalerPrice;
+		this.wholesalerPrice.setValue(wholesalerPrice);
 	}
 
 	public boolean isAvailable() {
@@ -78,12 +79,12 @@ public class Product {
 	}
 	
 	public void expire() {
-		this.publicPrice = this.getPublicPrice()*EXPIRATION_RATE;
+		this.publicPrice.setValue(this.getPublicPrice()*EXPIRATION_RATE);
 	}
-	
-	
 
-    
-
-    
+	@Override
+	public String toString() {
+		return "Product [name=" + this.name + ", publicPrice=" + this.publicPrice.getValue() + publicPrice.getCurrency() + ", wholesalerPrice=" + this.wholesalerPrice.getValue() + publicPrice.getCurrency() +
+		", stock=" + this.stock + "]\n";
+	}
 }
